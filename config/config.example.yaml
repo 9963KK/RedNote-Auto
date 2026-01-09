@@ -1,0 +1,72 @@
+# 小红书自动化工具配置文件示例
+# 复制此文件为 config.yaml 并填入真实配置
+
+# API 配置
+apis:
+  # DeepSeek API (翻译、摘要)
+  deepseek:
+    api_key: "your_deepseek_api_key_here"
+    base_url: "https://api.deepseek.com"
+    model: "deepseek-chat"
+    max_tokens: 4000
+    temperature: 0.1
+    
+  # 智谱 GLM API (视觉理解)
+  glm:
+    api_key: "your_glm_api_key_here"
+    base_url: "https://open.bigmodel.cn"
+    model: "glm-4v"
+    max_tokens: 1000
+    
+  # 小红书 MCP 服务器
+  xiaohongshu_mcp:
+    server_url: "http://localhost:3000"
+    timeout: 30
+    
+  # DeepSeek-OCR 服务 (本地部署)
+  deepseek_ocr:
+    service_url: "http://localhost:8080/ocr"
+    timeout: 60
+
+# 爬虫配置
+crawler:
+  huggingface:
+    daily_papers_url: "https://huggingface.co/papers"
+    min_likes: 10  # 最小点赞数阈值
+    max_papers: 5  # 每次处理的最大论文数
+    request_delay: 2  # 请求间隔(秒)
+    
+# PDF 处理配置
+pdf:
+  download_dir: "./data/pdfs"
+  output_dir: "./data/processed"
+  temp_dir: "./data/temp"
+  
+# 图像处理配置
+image:
+  max_size: 2048  # 最大边长
+  quality: 85  # JPEG 质量
+  formats: ["jpg", "png"]
+  
+# 发布配置
+publish:
+  xiaohongshu:
+    max_images: 9  # 小红书最大图片数
+    image_ratio: "4:3"  # 推荐宽高比
+    add_watermark: true
+    watermark_text: "📄 来源: Hugging Face Papers"
+    
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/app.log"
+  max_size: "10MB"
+  backup_count: 5
+
+# Redis 配置 (可选，用于任务队列)
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: null

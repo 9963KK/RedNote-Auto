@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RedNote Auto 监控面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+      <header class="flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold">RedNote Auto 监控面板</h1>
+          <p class="text-sm text-slate-500" id="statusLine">加载中…</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50"
+            onclick="openScheduleModal()"
+          >
+            定时配置
+          </button>
+          <button
+            class="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            onclick="triggerTask('publish')"
+          >
+            手动发布
+          </button>
+        </div>
+      </header>
+
+	      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">定时任务状态</h2>
+            <button class="text-sm text-slate-600 hover:text-slate-900" onclick="loadAll()">刷新</button>
+          </div>
+          <div class="mt-3 space-y-2" id="jobsList"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h2 class="text-lg font-semibold">最近发布任务</h2>
+          <div id="currentTaskBox" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            加载中…
+          </div>
+	          <div class="mt-3 overflow-auto">
+	            <table class="min-w-full text-sm">
+	              <thead class="text-slate-500">
+	                <tr class="border-b">
+	                  <th class="text-left py-2 pr-2">开始时间</th>
+	                  <th class="text-left py-2 pr-2">来源</th>
+	                  <th class="text-left py-2 pr-2">状态</th>
+	                  <th class="text-left py-2 pr-2">说明</th>
+	                </tr>
+	              </thead>
+	              <tbody id="tasksTable"></tbody>
+	            </table>
+	          </div>
+        </div>
+	      </section>
+	
+	      <section class="mt-4">
+	        <div class="bg-white rounded-xl border border-slate-200 p-4">
+	          <div class="flex items-center justify-between gap-3">
+	            <h2 class="text-lg font-semibold">模型健康</h2>
+	            <div class="flex items-center gap-2">
+	              <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+	                <input id="modelsAutoRefresh" type="checkbox" class="h-4 w-4" checked />
+	                自动刷新
+	              </label>
+	              <button
+	                class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50"
+	                onclick="checkModelsNow()"
+	              >
+	                立即检查
+	              </button>
+	            </div>
+	          </div>
+	          <div id="modelsBox" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-slate-700">加载中…</div>
+	          <div class="mt-2 text-xs text-slate-500" id="modelsMeta"></div>
+	        </div>
+	      </section>
+	    </div>
+
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 p-4">
+      <div class="w-full max-w-lg bg-white rounded-xl border border-slate-200 p-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">定时配置</h3>
+          <button class="text-slate-500 hover:text-slate-900" onclick="closeScheduleModal()">✕</button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium">发布任务</div>
+              <div class="text-xs text-slate-500">每天定时发布一次</div>
+            </div>
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input id="publishEnabled" type="checkbox" class="h-4 w-4" />
+              启用
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-slate-600">小时</label>
+              <input
+                id="publishHour"
+                type="number"
+                min="0"
+                max="23"
+                class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+              />
+            </div>
+            <div>
+              <label class="text-sm text-slate-600">分钟</label>
+              <input
+                id="publishMinute"
+                type="number"
+                min="0"
+                max="59"
+                class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button class="px-3 py-2 rounded-lg bg-white border border-slate-200" onclick="closeScheduleModal()">
+              取消
+            </button>
+            <button class="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" onclick="saveSchedule()">
+              保存
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+	    <script>
+	      let tasksCache = [];
+	      let modelsCache = {};
+	      let lastModelsFetchMs = 0;
+	      let modelsIntervalS = 60;
+	      const STEP_ORDER = ["fetch_papers", "openai_analyze", "render_images", "build_payload", "publish_mcp"];
+      const STEP_LABEL = {
+        fetch_papers: "抓取论文",
+        openai_analyze: "OpenAI分析",
+        render_images: "生成封面图",
+        build_payload: "生成发布文案",
+        publish_mcp: "MCP发布",
+      };
+
+      function formatTime(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        return d.toLocaleString("zh-CN");
+      }
+
+	      async function fetchJson(url) {
+	        const res = await fetch(url, { cache: "no-store" });
+	        if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+	        return await res.json();
+	      }
+
+	      function escapeHtml(text) {
+	        return String(text || "")
+	          .replaceAll("&", "&amp;")
+	          .replaceAll("<", "&lt;")
+	          .replaceAll(">", "&gt;")
+	          .replaceAll('"', "&quot;")
+	          .replaceAll("'", "&#039;");
+	      }
+
+      function taskStatusColor(status) {
+        const s = status || "-";
+        if (s === "success") return "text-emerald-700";
+        if (s === "failed") return "text-rose-700";
+        if (s === "running") return "text-indigo-700";
+        if (s === "canceled") return "text-amber-700";
+        if (s === "skipped") return "text-slate-600";
+        return "text-slate-600";
+      }
+
+	      async function retryTask(taskId, stepName) {
+	        try {
+	          const url = stepName
+	            ? `/api/tasks/${encodeURIComponent(taskId)}/retry/${encodeURIComponent(stepName)}`
+	            : `/api/tasks/${encodeURIComponent(taskId)}/retry`;
+	          const res = await fetch(url, { method: "POST" });
+	          const data = await res.json();
+	          if (!res.ok) throw new Error(data.detail || "retry failed");
+	          await loadTasks();
+	        } catch (e) {
+	          alert(`重试失败: ${e.message || e}`);
+	        }
+	      }
+
+      async function cancelTask(taskId) {
+        if (!taskId) return;
+        const ok = confirm("确定要终止当前发布任务吗？（可能需要等待当前网络请求超时后才会停止）");
+        if (!ok) return;
+        try {
+          const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "cancel failed");
+          await loadTasks();
+        } catch (e) {
+          alert(`终止失败: ${e.message || e}`);
+        }
+      }
+
+	      async function loadTasks() {
+	        const t = await fetchJson("/api/data/tasks.json");
+	        tasksCache = (Array.isArray(t.tasks) ? t.tasks : []).filter((x) => x && x.task_type === "publish");
+	        renderCurrentTask();
+	        const tbody = document.getElementById("tasksTable");
+	        tbody.innerHTML = "";
+	        if (!tasksCache.length) {
+	          const tr = document.createElement("tr");
+	          tr.innerHTML = `<td class="py-3 text-slate-500" colspan="4">暂无发布任务记录</td>`;
+	          tbody.appendChild(tr);
+	          return;
+	        }
+	        for (const task of tasksCache.slice(0, 50)) {
+	          const status = task.status || "-";
+          const statusColor = taskStatusColor(status);
+          const prog = task.progress || {};
+	          const runningNote =
+	            status === "running"
+	              ? `step=${task.current_step || "-"}, openai=${prog.openai_done ?? 0}/${prog.papers_total ?? 0}, images=${prog.images_done ?? 0}/${prog.papers_total ?? 0}, payload=${prog.payload_done ?? 0}/${prog.papers_total ?? 0}`
+	              : null;
+	          const note = runningNote || `papers=${task.papers_count || 0}, published=${task.published_count || 0}`;
+	          const message =
+	            task.error_message ? task.error_message : task.cancel_requested ? `${note} | cancel_requested` : note;
+	          const retryBtn =
+	            status === "failed"
+	              ? `<button class="ml-2 px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 text-xs" onclick="retryTask('${task.task_id}')">重试</button>`
+	              : "";
+            const cancelBtn =
+              status === "running"
+                ? task.cancel_requested
+                  ? `<button class="ml-2 px-2 py-1 rounded bg-slate-100 border border-slate-200 text-xs text-slate-500 cursor-not-allowed" disabled>取消中…</button>`
+                  : `<button class="ml-2 px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white text-xs" onclick="cancelTask('${task.task_id}')">终止</button>`
+                : "";
+	          const tr = document.createElement("tr");
+	          tr.className = "border-b last:border-b-0";
+	          tr.innerHTML = `
+	            <td class="py-2 pr-2 text-slate-600">${formatTime(task.start_time)}</td>
+	            <td class="py-2 pr-2 text-slate-600">${escapeHtml(task.source || "-")}</td>
+	            <td class="py-2 pr-2 ${statusColor}">${status}</td>
+	            <td class="py-2 pr-2 text-slate-600">${escapeHtml(message)}${cancelBtn}${retryBtn}</td>
+	          `;
+	          tbody.appendChild(tr);
+	        }
+	      }
+
+      function stepBadge(status) {
+        const s = status || "pending";
+        if (s === "success") return '<span class="text-emerald-700">●</span>';
+        if (s === "failed") return '<span class="text-rose-700">●</span>';
+        if (s === "running") return '<span class="text-indigo-700">●</span>';
+        if (s === "canceled") return '<span class="text-amber-700">●</span>';
+        if (s === "skipped") return '<span class="text-slate-500">●</span>';
+        return '<span class="text-slate-400">●</span>';
+      }
+
+      function stepCircleClass(status) {
+        const s = status || "pending";
+        if (s === "success") return "bg-emerald-600";
+        if (s === "failed") return "bg-rose-600";
+        if (s === "running") return "bg-indigo-600";
+        if (s === "canceled") return "bg-amber-600";
+        if (s === "skipped") return "bg-slate-500";
+        return "bg-slate-300";
+      }
+
+      function connectorClass(prevStatus) {
+        const s = prevStatus || "pending";
+        if (s === "success") return "bg-emerald-300";
+        if (s === "failed") return "bg-rose-300";
+        if (s === "running") return "bg-indigo-300";
+        if (s === "canceled") return "bg-amber-300";
+        if (s === "skipped") return "bg-slate-300";
+        return "bg-slate-200";
+      }
+
+      function renderStepper(stepMap) {
+        const parts = [];
+        parts.push('<div class="mt-3 flex items-center w-full">');
+        for (let i = 0; i < STEP_ORDER.length; i++) {
+          const key = STEP_ORDER[i];
+          const st = stepMap[key] || "pending";
+          parts.push('<div class="flex flex-col items-center min-w-[86px]">');
+          parts.push(`<div class="h-3 w-3 rounded-full ${stepCircleClass(st)}"></div>`);
+          parts.push(`<div class="mt-1 text-[11px] text-slate-600 text-center">${STEP_LABEL[key] || key}</div>`);
+          parts.push("</div>");
+          if (i < STEP_ORDER.length - 1) {
+            parts.push(`<div class="flex-1 h-0.5 ${connectorClass(st)} mx-2 rounded"></div>`);
+          }
+        }
+        parts.push("</div>");
+        return parts.join("");
+      }
+
+      function renderCurrentTask() {
+        const box = document.getElementById("currentTaskBox");
+        if (!box) return;
+        const current = tasksCache.find((t) => t.status === "running") || tasksCache[0];
+        if (!current) {
+          const emptyMap = {};
+          for (const k of STEP_ORDER) emptyMap[k] = "pending";
+          box.innerHTML = `
+            <div class="font-medium">暂无发布任务记录</div>
+            <div class="mt-1 text-xs text-slate-600">点击【手动发布】或等待定时触发后，这里会显示每个节点的实时进度。</div>
+            ${renderStepper(emptyMap)}
+          `;
+          return;
+        }
+
+        const prog = current.progress || {};
+        const steps = Array.isArray(current.steps) ? current.steps : [];
+        const warnings = Array.isArray(current.warnings) ? current.warnings : [];
+
+        const stepMap = {};
+        for (const k of STEP_ORDER) stepMap[k] = "pending";
+        for (const s of steps) {
+          if (s && s.name) stepMap[s.name] = s.status || "pending";
+        }
+
+	        const parts = [];
+	        parts.push(`<div class="flex items-center justify-between gap-3">`);
+	        parts.push(`<div class="font-medium">任务: ${current.task_id || "-"}</div>`);
+          const cancelBtn =
+            current.status === "running"
+              ? current.cancel_requested
+                ? `<button class="ml-2 px-3 py-1.5 rounded bg-slate-100 border border-slate-200 text-xs text-slate-500 cursor-not-allowed" disabled>取消中…</button>`
+                : `<button class="ml-2 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 text-white text-xs" onclick="cancelTask('${current.task_id}')">终止</button>`
+              : "";
+	        parts.push(`<div class="flex items-center text-slate-500">状态: <span class="${taskStatusColor(current.status)}">${current.status}</span>${cancelBtn}</div>`);
+	        parts.push(`</div>`);
+	        parts.push(
+            `<div class="mt-1 text-xs text-slate-600">来源: ${escapeHtml(current.source || "-")}${current.retry_of ? ` | retry_of: ${escapeHtml(current.retry_of)}` : ""}${current.cancel_requested ? ` | cancel_requested` : ""}</div>`
+          );
+	
+	        if (current.status === "failed") {
+	          const failedStep = current.failed_step || "-";
+	          const resumable = !!current.resumable;
+	          parts.push(`<div class="mt-2 flex items-center justify-between gap-3 text-xs">`);
+	          parts.push(`<div class="text-slate-600">failed_step: <span class="text-rose-700">${escapeHtml(failedStep)}</span> | resumable: ${resumable ? "yes" : "no"}</div>`);
+	          parts.push(
+	            `<button class="px-3 py-1.5 rounded bg-white border border-slate-200 hover:bg-slate-50 ${resumable ? "" : "opacity-50 cursor-not-allowed"}" ${
+	              resumable ? `onclick="retryTask('${current.task_id}')"` : "disabled"
+	            }>从失败处重试</button>`
+	          );
+	          parts.push(`</div>`);
+	        }
+
+	        parts.push(renderStepper(stepMap));
+	        parts.push(`<div class="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-600">`);
+	        parts.push(`<div>papers_total: ${prog.papers_total ?? "-"}</div>`);
+	        parts.push(`<div>openai_done: ${prog.openai_done ?? "-"}</div>`);
+	        parts.push(`<div>images_done: ${prog.images_done ?? "-"}</div>`);
+	        parts.push(`</div>`);
+	        parts.push(`<div class="mt-1 text-xs text-slate-600">payload_done: ${prog.payload_done ?? "-"}</div>`);
+
+	        if (steps.length) {
+	          parts.push(`<div class="mt-3 space-y-1">`);
+	          for (const s of steps) {
+	            const name = s.name || "-";
+	            const label = STEP_LABEL[name] || name;
+	            const st = s.status || "pending";
+	            const canRetry = current.status === "failed" && !!current.resumable && STEP_ORDER.includes(name);
+	            const retryLink = canRetry
+	              ? `<button class="ml-2 text-xs text-indigo-700 hover:text-indigo-900" onclick="retryTask('${current.task_id}','${name}')">从此步重试</button>`
+	              : "";
+	            parts.push(
+	              `<div class="flex items-center justify-between gap-3">
+	                <div class="flex items-center gap-2">${stepBadge(st)}<span class="font-medium">${label}</span>${retryLink}</div>
+	                <div class="text-xs text-slate-500">${st}</div>
+	              </div>`
+	            );
+	          }
+	          parts.push(`</div>`);
+	        } else {
+          parts.push(`<div class="mt-2 text-xs text-slate-500">无步骤信息（旧任务）。</div>`);
+        }
+
+        if (warnings.length) {
+          const last = warnings[warnings.length - 1];
+          parts.push(
+            `<div class="mt-3 text-xs text-amber-700">warnings: ${warnings.length}（最近: ${last.phase || "-"} ${last.title || ""}）</div>`
+          );
+        }
+
+	        if (current.error_message) {
+	          parts.push(`<div class="mt-2 text-xs text-rose-700">error: ${escapeHtml(current.error_message)}</div>`);
+	        }
+
+        box.innerHTML = parts.join("");
+      }
+
+      async function loadJobs() {
+        const j = await fetchJson("/api/jobs");
+        const jobs = Array.isArray(j.jobs) ? j.jobs : [];
+        const el = document.getElementById("jobsList");
+        el.innerHTML = "";
+        for (const job of jobs) {
+          const item = document.createElement("div");
+          item.className = "flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2";
+          item.innerHTML = `
+            <div>
+              <div class="font-medium">${job.id}</div>
+              <div class="text-xs text-slate-500">${job.trigger}</div>
+            </div>
+            <div class="text-sm text-slate-700">下次运行: ${formatTime(job.next_run_time)}</div>
+          `;
+          el.appendChild(item);
+        }
+      }
+
+      async function triggerTask(type) {
+        try {
+          const res = await fetch("/api/tasks/trigger", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_type: type }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "trigger failed");
+          await loadTasks();
+        } catch (e) {
+          alert(`触发失败: ${e.message || e}`);
+        }
+      }
+
+      function openScheduleModal() {
+        document.getElementById("scheduleModal").classList.remove("hidden");
+        document.getElementById("scheduleModal").classList.add("flex");
+        loadScheduleIntoModal();
+      }
+
+      function closeScheduleModal() {
+        document.getElementById("scheduleModal").classList.add("hidden");
+        document.getElementById("scheduleModal").classList.remove("flex");
+      }
+
+      async function loadScheduleIntoModal() {
+        try {
+          const cfg = await fetchJson("/api/schedule");
+          document.getElementById("publishEnabled").checked = !!cfg.publish_enabled;
+          document.getElementById("publishHour").value = cfg.publish_hour;
+          document.getElementById("publishMinute").value = cfg.publish_minute;
+        } catch (e) {
+          alert(`加载配置失败: ${e.message || e}`);
+        }
+      }
+
+	      async function saveSchedule() {
+        const payload = {
+          publish_enabled: document.getElementById("publishEnabled").checked,
+          publish_hour: Number(document.getElementById("publishHour").value),
+          publish_minute: Number(document.getElementById("publishMinute").value),
+        };
+        try {
+          const res = await fetch("/api/schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "save failed");
+          closeScheduleModal();
+          await loadJobs();
+        } catch (e) {
+          alert(`保存失败: ${e.message || e}`);
+        }
+	      }
+	
+	      function statusDotClass(st) {
+	        if (st === "healthy") return "bg-emerald-600";
+	        if (st === "unhealthy") return "bg-rose-600";
+	        return "bg-slate-400";
+	      }
+	
+	      function renderModels() {
+	        const box = document.getElementById("modelsBox");
+	        const meta = document.getElementById("modelsMeta");
+	        if (!box) return;
+	        const entries = Object.entries(modelsCache || {});
+	        if (!entries.length) {
+	          box.innerHTML = `<div class="text-slate-500 text-sm">暂无健康数据（点击“立即检查”）</div>`;
+	          if (meta) meta.innerText = "";
+	          return;
+	        }
+	        box.innerHTML = "";
+	        let lastCheck = "";
+	        for (const [name, st] of entries) {
+	          const status = (st && st.status) || "unknown";
+	          lastCheck = (st && st.last_check) || lastCheck;
+	          const card = document.createElement("div");
+	          card.className = "rounded-lg border border-slate-200 bg-slate-50 p-3";
+	          card.innerHTML = `
+	            <div class="flex items-center justify-between">
+	              <div class="font-medium">${escapeHtml(name)}</div>
+	              <div class="flex items-center gap-2 text-xs text-slate-600">
+	                <span class="h-2 w-2 rounded-full ${statusDotClass(status)}"></span>
+	                <span>${escapeHtml(status)}</span>
+	              </div>
+	            </div>
+	            <div class="mt-2 text-xs text-slate-600">延迟: ${st && st.latency_ms != null ? `${Math.round(st.latency_ms)}ms` : "--"}</div>
+	            <div class="mt-1 text-xs text-slate-500 break-words">${st && st.error ? `错误: ${escapeHtml(st.error)}` : ""}</div>
+	          `;
+	          box.appendChild(card);
+	        }
+	        if (meta) meta.innerText = `最后检查: ${lastCheck || "-"} | 刷新间隔: ${modelsIntervalS}s`;
+	      }
+	
+	      async function loadModelsHealth(force = false) {
+	        const auto = document.getElementById("modelsAutoRefresh");
+	        if (!force && auto && !auto.checked) return;
+	        const now = Date.now();
+	        if (!force && now - lastModelsFetchMs < modelsIntervalS * 1000) return;
+	        try {
+	          const data = await fetchJson("/api/models/health");
+	          modelsIntervalS = Number(data.interval_s || 60);
+	          modelsCache = data.models || {};
+	          lastModelsFetchMs = now;
+	          renderModels();
+	        } catch (e) {
+	          // keep previous cache
+	        }
+	      }
+	
+	      async function checkModelsNow() {
+	        try {
+	          const res = await fetch("/api/models/health/check", { method: "POST" });
+	          const data = await res.json();
+	          if (!res.ok) throw new Error(data.detail || "check failed");
+	          modelsCache = data.models || {};
+	          lastModelsFetchMs = 0;
+	          renderModels();
+	        } catch (e) {
+	          alert(`检查失败: ${e.message || e}`);
+	        }
+	      }
+
+	      async function loadAll() {
+	        try {
+	          await Promise.all([loadTasks(), loadJobs(), loadModelsHealth()]);
+	          document.getElementById("statusLine").innerText = `仅监控发布任务 | 最近刷新: ${new Date().toLocaleString("zh-CN")}`;
+	        } catch (e) {
+	          console.error(e);
+	        }
+	      }
+
+      loadAll();
+      setInterval(loadAll, 5000);
+    </script>
+  </body>
+</html>

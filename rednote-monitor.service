@@ -1,0 +1,16 @@
+[Unit]
+Description=RedNote Auto Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/RedNote-Auto
+Environment="PATH=/root/RedNote-Auto/venv/bin"
+ExecStart=/root/RedNote-Auto/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
