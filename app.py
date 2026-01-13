@@ -13,9 +13,11 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+from queue import Queue, Empty
+
 
 import main as rednote_main
 from checkpoint_manager import CheckpointManager
@@ -190,6 +192,21 @@ TASKS_LOCK = threading.RLock()
 
 CANCEL_EVENTS: Dict[str, threading.Event] = {}
 CANCEL_EVENTS_LOCK = threading.Lock()
+
+# Log streaming support
+log_queues: List[Queue] = []
+log_queues_lock = threading.Lock()
+
+class LogQueueHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            with log_queues_lock:
+                for q in log_queues:
+                    q.put_nowait(msg)
+        except Exception:
+            self.handleError(record)
+
 
 
 def _get_cancel_event(task_id: str) -> threading.Event:
@@ -735,7 +752,15 @@ app = FastAPI(title="RedNote Auto Monitor", version="1.0")
 
 @app.on_event("startup")
 async def _on_startup() -> None:
+    # Setup log streaming
+    root_log = logging.getLogger()
+    handler = LogQueueHandler()
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    root_log.addHandler(handler)
+
     _ensure_data_files()
+
     # best-effort: clean old checkpoints
     try:
         deleted = checkpoint_mgr.cleanup()
@@ -983,6 +1008,35 @@ async def get_data(file_path: str):
             return JSONResponse(content=json.load(f))
     except Exception:
         raise HTTPException(status_code=500, detail="failed to read json")
+
+
+@app.websocket("/ws/logs")
+async def websocket_logs(websocket: WebSocket):
+    await websocket.accept()
+    q = Queue()
+    with log_queues_lock:
+        log_queues.append(q)
+    try:
+        while True:
+            try:
+                # Non-blocking check to allow handling disconnects
+                # In a real async loop we might use asyncio.Queue, but logging is thread-based.
+                # efficiently bridging:
+                while True:
+                    try:
+                        line = q.get_nowait()
+                        await websocket.send_text(line)
+                    except Empty:
+                        break
+                await asyncio.sleep(0.1)
+            except Exception:
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        with log_queues_lock:
+            if q in log_queues:
+                log_queues.remove(q)
 
 
 if __name__ == "__main__":

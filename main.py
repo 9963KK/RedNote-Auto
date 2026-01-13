@@ -5,6 +5,7 @@ import asyncio
 import re
 import time
 from typing import List, Dict, Any, Optional, Callable
+from pathlib import Path
 import requests
 import fitz  # PyMuPDF
 from openai import OpenAI
@@ -66,6 +67,77 @@ ENABLE_MCP_PUBLISH = os.getenv("ENABLE_MCP_PUBLISH", "false").lower() in ("1", "
 
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _DEFAULT_XHS_TAGS = ["AI论文", "论文速览", "科研"]
+_HOT_XHS_TAGS = [
+    "AI论文",
+    "论文速览",
+    "AIGC",
+    "人工智能",
+    "大模型",
+    "LLM",
+    "多模态",
+    "生成式AI",
+    "智能体",
+    "Agent",
+    "RAG",
+    "Transformer",
+    "Diffusion",
+    "Mamba",
+    "机器学习",
+    "深度学习",
+    "计算机视觉",
+    "自然语言处理",
+    "强化学习",
+    "图学习",
+    "视觉语言",
+    "评测",
+    "开源模型",
+    "数据集",
+    "指令微调",
+    "微调",
+    "LoRA",
+    "PEFT",
+    "RLHF",
+    "DPO",
+    "SFT",
+    "MoE",
+    "量化",
+    "剪枝",
+    "知识蒸馏",
+    "对比学习",
+    "自监督学习",
+    "无监督学习",
+    "迁移学习",
+    "对抗学习",
+    "对齐",
+    "提示工程",
+    "思维链",
+    "工具调用",
+    "推理",
+    "代码生成",
+    "文本生成",
+    "文本摘要",
+    "问答",
+    "信息抽取",
+    "机器翻译",
+    "图像生成",
+    "文生图",
+    "图文检索",
+    "视频生成",
+    "文生视频",
+    "图像理解",
+    "目标检测",
+    "语义分割",
+    "OCR",
+    "语音识别",
+    "语音合成",
+    "推荐系统",
+    "时序预测",
+    "规划",
+    "机器人",
+    "自动驾驶",
+]
+_HOT_TAGS_WHITELIST_PATH = Path(__file__).resolve().parent / "data" / "hot_tags_whitelist.json"
+_HOT_TAGS_CACHE: Optional[List[str]] = None
 _MAX_XHS_TAGS = 10
 _MIN_XHS_TAG_LEN = 2
 _MAX_XHS_TAG_LEN = 16
@@ -87,6 +159,66 @@ _GENERIC_XHS_TAGS = {
     "提升",
     "记录",
     "工具",
+}
+_TAG_KEYWORD_HINTS: Dict[str, List[str]] = {
+    "LLM": ["llm", "语言模型", "大语言模型", "large language model", "foundation model"],
+    "RAG": ["rag", "检索增强", "retrieval-augmented", "retrieval augmented", "检索式"],
+    "Agent": ["agent", "智能体", "代理", "tool use", "tool-use", "tool calling", "工具调用"],
+    "多模态": ["多模态", "multimodal", "跨模态", "图文", "image-text", "vlm"],
+    "视觉语言": ["视觉语言", "vision-language", "vlm", "image-text"],
+    "Diffusion": ["diffusion", "扩散"],
+    "Transformer": ["transformer", "attention", "自注意力"],
+    "Mamba": ["mamba", "state space", "ssm"],
+    "指令微调": ["指令微调", "instruction tuning", "instruction-tuning", "指令跟随"],
+    "LoRA": ["lora"],
+    "PEFT": ["peft"],
+    "RLHF": ["rlhf"],
+    "DPO": ["dpo", "preference optimization", "直接偏好优化"],
+    "SFT": ["sft", "supervised fine-tuning", "监督微调"],
+    "MoE": ["moe", "mixture of experts"],
+    "量化": ["量化", "quantization", "int8", "int4"],
+    "剪枝": ["剪枝", "pruning"],
+    "对齐": ["对齐", "alignment"],
+    "知识蒸馏": ["蒸馏", "distill", "distillation"],
+    "对比学习": ["对比学习", "contrastive"],
+    "自监督学习": ["自监督", "self-supervised"],
+    "无监督学习": ["无监督", "unsupervised"],
+    "迁移学习": ["迁移学习", "transfer learning", "domain adaptation"],
+    "对抗学习": ["对抗", "adversarial"],
+    "提示工程": ["prompt", "提示工程", "prompting"],
+    "思维链": ["思维链", "cot", "chain-of-thought"],
+    "推理": ["推理", "reasoning", "inference"],
+    "代码生成": ["代码", "code", "program", "coding"],
+    "文本生成": ["文本生成", "text generation", "generation"],
+    "文本摘要": ["摘要", "summarization", "summary"],
+    "问答": ["问答", "qa", "question answering"],
+    "信息抽取": ["信息抽取", "信息提取", "extraction", "ner", "实体识别"],
+    "机器翻译": ["翻译", "translation", "mt"],
+    "图像生成": ["图像生成", "image generation", "t2i", "text-to-image", "文生图"],
+    "文生图": ["文生图", "text-to-image", "t2i"],
+    "图文检索": ["图文检索", "cross-modal retrieval", "image-text retrieval"],
+    "视频生成": ["视频生成", "video generation", "t2v", "text-to-video", "文生视频"],
+    "文生视频": ["文生视频", "text-to-video", "t2v"],
+    "图像理解": ["图像理解", "image understanding", "视觉推理"],
+    "目标检测": ["目标检测", "detection", "object detection", "检测"],
+    "语义分割": ["语义分割", "segmentation"],
+    "OCR": ["ocr", "文字识别", "文本识别"],
+    "语音识别": ["语音识别", "asr", "speech recognition"],
+    "语音合成": ["语音合成", "tts", "speech synthesis"],
+    "推荐系统": ["推荐", "recommend", "recommender"],
+    "时序预测": ["时序", "序列", "time series", "forecast"],
+    "规划": ["规划", "planning"],
+    "机器人": ["机器人", "robot", "robotic", "robotics"],
+    "自动驾驶": ["自动驾驶", "autonomous driving", "autonomous"],
+    "计算机视觉": ["视觉", "图像", "cv", "vision"],
+    "自然语言处理": ["nlp", "文本", "语言", "对话"],
+    "强化学习": ["强化学习", "rl", "reward"],
+    "图学习": ["图学习", "gnn", "graph"],
+    "生成式AI": ["生成式", "generative", "aigc"],
+    "大模型": ["大模型", "foundation model", "base model"],
+    "评测": ["评测", "benchmark", "evaluation"],
+    "开源模型": ["开源", "open source"],
+    "数据集": ["数据集", "dataset"],
 }
 
 
@@ -220,6 +352,63 @@ def _format_exception_group(exc: BaseException) -> str:
     return "\n".join(lines)
 
 
+def _dedupe_keep_order(values: List[str]) -> List[str]:
+    seen = set()
+    out: List[str] = []
+    for v in values:
+        if v in seen:
+            continue
+        seen.add(v)
+        out.append(v)
+    return out
+
+
+def _load_hot_tags_whitelist() -> List[str]:
+    global _HOT_TAGS_CACHE
+    if _HOT_TAGS_CACHE is not None:
+        return _HOT_TAGS_CACHE
+
+    tags: List[str] = []
+    try:
+        if _HOT_TAGS_WHITELIST_PATH.exists():
+            with open(_HOT_TAGS_WHITELIST_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            raw = data.get("完整优化标签列表_按流量排序")
+            if isinstance(raw, list):
+                tags = [str(t).strip() for t in raw if str(t).strip()]
+    except Exception as e:
+        logger.warning("Failed to load hot tags whitelist: %s", e)
+
+    _HOT_TAGS_CACHE = tags or list(_HOT_XHS_TAGS)
+    return _HOT_TAGS_CACHE
+
+
+def _allowed_xhs_tags() -> List[str]:
+    return _dedupe_keep_order(_load_hot_tags_whitelist() + _DEFAULT_XHS_TAGS)
+
+
+def _tag_key(tag: str) -> str:
+    return (tag or "").strip().lower()
+
+
+def _extract_tags_from_context(context: str, allowed_tags: List[str], max_tags: int) -> List[str]:
+    if not context:
+        return []
+    allowed_set = set(allowed_tags)
+    text = context.lower()
+    hits: List[str] = []
+    for tag, keywords in _TAG_KEYWORD_HINTS.items():
+        if tag not in allowed_set:
+            continue
+        for kw in keywords:
+            if kw.lower() in text:
+                hits.append(tag)
+                break
+        if len(hits) >= max_tags:
+            break
+    return _dedupe_keep_order(hits)[:max_tags]
+
+
 def _mcp_content_to_dict(content: Any) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     if not content:
@@ -292,9 +481,15 @@ def _parse_json_array(text: str) -> List[str]:
     return [str(x) for x in data]
 
 
-def _sanitize_tags(tags: List[str], *, max_tags: int = _MAX_XHS_TAGS) -> List[str]:
+def _sanitize_tags(
+    tags: List[str],
+    *,
+    max_tags: int = _MAX_XHS_TAGS,
+    allowed_tags: Optional[List[str]] = None,
+) -> List[str]:
     cleaned: List[str] = []
     seen: set[str] = set()
+    allowed_map = {_tag_key(t): t for t in allowed_tags} if allowed_tags else {}
     for raw in tags:
         t = (raw or "").strip()
         t = t.lstrip("#").strip()
@@ -302,6 +497,11 @@ def _sanitize_tags(tags: List[str], *, max_tags: int = _MAX_XHS_TAGS) -> List[st
         t = t.strip("，,。.;；:：/|")
         if not t:
             continue
+        if allowed_map:
+            key = _tag_key(t)
+            if key not in allowed_map:
+                continue
+            t = allowed_map[key]
         if "http" in t.lower() or "www." in t.lower():
             continue
         if t in _GENERIC_XHS_TAGS:
@@ -335,6 +535,7 @@ def generate_xhs_tags(items: List[Dict[str, Any]], translator: Optional["Deepsee
         elif title:
             lines.append(f"{i}. {title}")
     context = "\n".join(lines)
+    allowed_tags = _allowed_xhs_tags()
 
     tag_count = int(os.getenv("XHS_TAG_COUNT", "8"))
     tag_count = max(3, min(tag_count, _MAX_XHS_TAGS))
@@ -342,12 +543,14 @@ def generate_xhs_tags(items: List[Dict[str, Any]], translator: Optional["Deepsee
     prompt = (
         "你是小红书内容运营。请基于下面「今日论文列表」生成帖子话题标签。\n"
         f"只输出严格 JSON 数组（恰好 {tag_count} 个字符串），不要任何额外文字。\n"
+        "只能从「允许标签」中选择，必须完全匹配，不要创造新标签。\n"
         "规则：\n"
         "1) 标签必须与给定内容强相关，尽量从标题/摘要中提炼技术名词/论文关键词；避免输出纯效果描述（如 提升/优化/更好）\n"
         "2) 覆盖面：尽量涵盖每篇论文至少 1 个标签；同时包含“领域/任务”与“方法/模型”两类标签\n"
         "3) 避免泛标签（如 生活/学习/分享/日常/成长/打卡/干货/推荐/必看/教程/攻略）\n"
         "4) 标签不带 #，不要重复；中文为主，可包含必要英文缩写（如 LLM/RL/3D）\n"
         f"5) 每个标签长度 {_MIN_XHS_TAG_LEN}-{_MAX_XHS_TAG_LEN} 字符\n\n"
+        f"允许标签：{('、'.join(allowed_tags))}\n\n"
         f"今日论文列表：\n{context}\n"
     )
 
@@ -386,14 +589,25 @@ def generate_xhs_tags(items: List[Dict[str, Any]], translator: Optional["Deepsee
         else:
             return list(_DEFAULT_XHS_TAGS)
 
-        tags = _sanitize_tags(_parse_json_array(raw), max_tags=_MAX_XHS_TAGS)
+        tags = _sanitize_tags(_parse_json_array(raw), max_tags=_MAX_XHS_TAGS, allowed_tags=allowed_tags)
 
         # Ensure at least one general tag is present.
         if not any(t in tags for t in ("AI论文", "论文速览", "AIGC")):
             tags.insert(0, "AI论文")
 
-        # If generation produced too few tags, pad with defaults.
+        # If generation produced too few tags, pad with keyword hits and defaults.
+        context_text = "\n".join([it.get("title", "") + " " + it.get("one_line", "") for it in items])
+        for t in _extract_tags_from_context(context_text, allowed_tags, max_tags=_MAX_XHS_TAGS):
+            if len(tags) >= tag_count:
+                break
+            if t not in tags:
+                tags.append(t)
         for t in _DEFAULT_XHS_TAGS:
+            if len(tags) >= tag_count:
+                break
+            if t not in tags:
+                tags.append(t)
+        for t in allowed_tags:
             if len(tags) >= tag_count:
                 break
             if t not in tags:

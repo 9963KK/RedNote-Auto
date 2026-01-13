@@ -1,562 +1,1087 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RedNote Auto 监控面板</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-slate-50 text-slate-900">
-    <div class="max-w-6xl mx-auto px-4 py-6">
-      <header class="flex items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold">RedNote Auto 监控面板</h1>
-          <p class="text-sm text-slate-500" id="statusLine">加载中…</p>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RedNote Auto - 智能监控中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'spin-slow': 'spin 3s linear infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f0f0f0;
+      background-image: radial-gradient(#d1d1d1 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    .brand-font {
+      font-family: 'DotGothic16', sans-serif;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .mono-font {
+      font-family: 'Space Mono', monospace;
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .border-heavy {
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0px #000;
+    }
+
+    .btn-nothing {
+      transition: all 0.1s;
+      border: 2px solid #000;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    .btn-nothing:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 0px 0px #000;
+    }
+
+    .status-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .shimmer {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    .progress-bar {
+      transition: width 0.5s ease;
+    }
+
+    .stat-number {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 antialiased">
+  <!-- Header -->
+  <!-- Header -->
+  <header class="bg-white border-b-2 border-black sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <div class="bg-red-600 p-2 border-2 border-black">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-black tracking-tighter">REDNOTE(AUTO)</h1>
+            <p class="text-xs text-gray-500 mono-font tracking-wide">SYSTEM_MONITOR_V1.0</p>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center space-x-3">
           <button
-            class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50"
-            onclick="openScheduleModal()"
-          >
-            定时配置
+            class="px-4 py-2 bg-white text-black text-sm font-bold border-2 border-black hover:bg-gray-100 transition-all duration-200 flex items-center space-x-2"
+            onclick="openScheduleModal()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="mono-font">SCHEDULE</span>
           </button>
           <button
-            class="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-            onclick="triggerTask('publish')"
-          >
-            手动发布
+            class="px-4 py-2 bg-black text-white text-sm font-bold border-2 border-black hover:bg-gray-800 transition-all duration-200 flex items-center space-x-2 btn-nothing"
+            onclick="triggerTask('publish', this)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span class="mono-font">PUBLISH NOW</span>
           </button>
         </div>
-      </header>
+      </div>
+    </div>
+  </header>
 
-	      <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-white rounded-xl border border-slate-200 p-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">定时任务状态</h2>
-            <button class="text-sm text-slate-600 hover:text-slate-900" onclick="loadAll()">刷新</button>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Active Task & Terminal (Top Priority) -->
+    <!-- Active Task & Terminal (Top Priority) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Current Task Progress -->
+      <div class="bg-white border-heavy p-6 flex flex-col">
+        <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+          <h2 class="text-xl font-bold text-black flex items-center">
+            <span class="w-3 h-3 bg-red-600 mr-2"></span>
+            CURRENT_TASK
+          </h2>
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-1 bg-black text-white text-xs font-mono" id="taskStatusBadge">
+              WAITING
+            </span>
           </div>
-          <div class="mt-3 space-y-2" id="jobsList"></div>
         </div>
+        <div id="currentTaskBox" class="flex-grow"></div>
+      </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 p-4">
-          <h2 class="text-lg font-semibold">最近发布任务</h2>
-          <div id="currentTaskBox" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            加载中…
+      <!-- Live Terminal -->
+      <div class="bg-white border-heavy p-4 flex flex-col h-[500px]">
+        <div class="flex items-center justify-between mb-2 border-b-2 border-black pb-2">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 bg-black rounded-full"></span>
+            <span class="text-xs text-black font-bold mono-font">SYSTEM_LOGS</span>
           </div>
-	          <div class="mt-3 overflow-auto">
-	            <table class="min-w-full text-sm">
-	              <thead class="text-slate-500">
-	                <tr class="border-b">
-	                  <th class="text-left py-2 pr-2">开始时间</th>
-	                  <th class="text-left py-2 pr-2">来源</th>
-	                  <th class="text-left py-2 pr-2">状态</th>
-	                  <th class="text-left py-2 pr-2">说明</th>
-	                </tr>
-	              </thead>
-	              <tbody id="tasksTable"></tbody>
-	            </table>
-	          </div>
+          <div class="flex items-center space-x-3">
+            <span class="flex items-center text-xs text-black mono-font">
+              <span class="w-2 h-2 rounded-full mr-2 transition-colors duration-300 bg-gray-300"
+                id="wsStatusDot"></span>
+              <span id="wsStatusText">CONNECTING...</span>
+            </span>
+            <button onclick="clearLogs()"
+              class="px-2 py-0.5 border border-black hover:bg-black hover:text-white text-xs transition-colors"
+              title="Clear logs">
+              CLR
+            </button>
+          </div>
         </div>
-	      </section>
-	
-	      <section class="mt-4">
-	        <div class="bg-white rounded-xl border border-slate-200 p-4">
-	          <div class="flex items-center justify-between gap-3">
-	            <h2 class="text-lg font-semibold">模型健康</h2>
-	            <div class="flex items-center gap-2">
-	              <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-	                <input id="modelsAutoRefresh" type="checkbox" class="h-4 w-4" checked />
-	                自动刷新
-	              </label>
-	              <button
-	                class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50"
-	                onclick="checkModelsNow()"
-	              >
-	                立即检查
-	              </button>
-	            </div>
-	          </div>
-	          <div id="modelsBox" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-slate-700">加载中…</div>
-	          <div class="mt-2 text-xs text-slate-500" id="modelsMeta"></div>
-	        </div>
-	      </section>
-	    </div>
+        <div id="terminal"
+          class="flex-grow font-mono text-xs text-black overflow-y-auto whitespace-pre-wrap break-all custom-scrollbar bg-gray-50 p-3 border border-gray-200">
+        </div>
+      </div>
+    </div>
 
-    <!-- Schedule Modal -->
-    <div id="scheduleModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 p-4">
-      <div class="w-full max-w-lg bg-white rounded-xl border border-slate-200 p-5">
+    <!-- Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white border-heavy p-6">
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold">定时配置</h3>
-          <button class="text-slate-500 hover:text-slate-900" onclick="closeScheduleModal()">✕</button>
+          <div>
+            <p class="text-xs font-bold text-gray-500 mono-font uppercase">Published Today</p>
+            <p class="text-4xl font-bold text-black stat-number mt-2 tracking-tighter" id="todayCount">--</p>
+          </div>
+          <div class="bg-black text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
         </div>
+      </div>
 
-        <div class="mt-4 space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-medium">发布任务</div>
-              <div class="text-xs text-slate-500">每天定时发布一次</div>
-            </div>
-            <label class="inline-flex items-center gap-2 text-sm">
-              <input id="publishEnabled" type="checkbox" class="h-4 w-4" />
-              启用
-            </label>
+      <div class="bg-white border-heavy p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-gray-500 mono-font uppercase">Success Rate</p>
+            <p class="text-4xl font-bold text-black stat-number mt-2 tracking-tighter" id="successRate">--</p>
           </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-sm text-slate-600">小时</label>
-              <input
-                id="publishHour"
-                type="number"
-                min="0"
-                max="23"
-                class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
-              />
-            </div>
-            <div>
-              <label class="text-sm text-slate-600">分钟</label>
-              <input
-                id="publishMinute"
-                type="number"
-                min="0"
-                max="59"
-                class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
-              />
-            </div>
+          <div class="bg-black text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
+        </div>
+      </div>
 
-          <div class="flex items-center justify-end gap-2 pt-2">
-            <button class="px-3 py-2 rounded-lg bg-white border border-slate-200" onclick="closeScheduleModal()">
-              取消
-            </button>
-            <button class="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" onclick="saveSchedule()">
-              保存
-            </button>
+      <div class="bg-white border-heavy p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-gray-500 mono-font uppercase">Model Health</p>
+            <p class="text-4xl font-bold text-black stat-number mt-2 tracking-tighter" id="modelsHealth">--</p>
+          </div>
+          <div class="bg-black text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white border-heavy p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-gray-500 mono-font uppercase">Next Run</p>
+            <p class="text-xl font-bold text-black mt-2 mono-font tracking-tight" id="nextRunTime">--</p>
+          </div>
+          <div class="bg-black text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
         </div>
       </div>
     </div>
 
-	    <script>
-	      let tasksCache = [];
-	      let modelsCache = {};
-	      let lastModelsFetchMs = 0;
-	      let modelsIntervalS = 60;
-	      const STEP_ORDER = ["fetch_papers", "openai_analyze", "render_images", "build_payload", "publish_mcp"];
-      const STEP_LABEL = {
-        fetch_papers: "抓取论文",
-        openai_analyze: "OpenAI分析",
-        render_images: "生成封面图",
-        build_payload: "生成发布文案",
-        publish_mcp: "MCP发布",
+
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Tasks History -->
+      <div class="bg-white border-heavy p-6">
+        <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+          <h2 class="text-xl font-bold text-black flex items-center">
+            <span class="w-3 h-3 bg-black mr-2"></span>
+            HISTORY
+          </h2>
+        </div>
+        <div class="overflow-auto max-h-96">
+          <table class="min-w-full">
+            <thead class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200">
+              <tr>
+                <th class="text-left py-3 px-2">时间</th>
+                <th class="text-left py-3 px-2">来源</th>
+                <th class="text-left py-3 px-2">状态</th>
+                <th class="text-left py-3 px-2">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tasksTable" class="text-sm divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Scheduled Jobs -->
+      <div class="bg-white border-heavy p-6">
+        <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+          <h2 class="text-xl font-bold text-black flex items-center">
+            <span class="w-3 h-3 bg-black mr-2"></span>
+            CRON_JOBS
+          </h2>
+        </div>
+        <div id="jobsList" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- Models Health -->
+    <div class="bg-white border-heavy p-6">
+      <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+        <h2 class="text-xl font-bold text-black flex items-center">
+          <span class="w-3 h-3 bg-red-600 mr-2"></span>
+          AI_MODELS_STATUS
+        </h2>
+        <div class="flex items-center space-x-3">
+          <label class="inline-flex items-center space-x-2 text-sm text-gray-600 mono-font">
+            <input id="modelsAutoRefresh" type="checkbox"
+              class="h-4 w-4 text-black border-2 border-black rounded-none focus:ring-0 checked:bg-black" checked />
+            <span>AUTO_REFRESH</span>
+          </label>
+          <button
+            class="px-3 py-1 bg-white hover:bg-black hover:text-white text-black border-2 border-black transition-colors duration-200 flex items-center space-x-2"
+            onclick="checkModelsNow(this)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span class="mono-font text-xs font-bold">CHECK_NOW</span>
+          </button>
+        </div>
+      </div>
+      <div id="modelsBox" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      <div class="mt-4 text-xs text-gray-500 flex items-center justify-between">
+        <span id="modelsMeta"></span>
+        <span id="modelsLastUpdate"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Schedule Modal -->
+  <div id="scheduleModal"
+    class="fixed inset-0 hidden items-center justify-center bg-white/80 backdrop-blur-sm p-4 z-50">
+    <div class="w-full max-w-lg bg-white border-heavy p-6 transform transition-all">
+      <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+        <h3 class="text-2xl font-bold text-black uppercase tracking-tighter">SCHEDULE_CONFIG</h3>
+        <button
+          class="text-black hover:bg-black hover:text-white p-1 transition-colors border border-transparent hover:border-black"
+          onclick="closeScheduleModal()">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-6">
+        <div class="bg-gray-50 border border-black p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-bold text-black mono-font uppercase">Auto Publish</div>
+              <div class="text-xs text-gray-500 mt-1 mono-font">Crawls daily papers & publishes</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="publishEnabled" type="checkbox" class="sr-only peer" />
+              <div
+                class="w-10 h-6 bg-white peer-focus:outline-none border-2 border-black peer peer-checked:bg-black transition-colors">
+                <div
+                  class="absolute top-[4px] left-[4px] bg-black w-4 h-4 peer-checked:bg-white peer-checked:translate-x-full transition-transform">
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-black mb-2 uppercase mono-font">Hour (0-23)</label>
+            <input id="publishHour" type="number" min="0" max="23"
+              class="w-full px-4 py-3 bg-white border-2 border-black focus:ring-0 focus:border-black font-mono text-black placeholder-gray-400"
+              placeholder="09" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-black mb-2 uppercase mono-font">Minute (0-59)</label>
+            <input id="publishMinute" type="number" min="0" max="59"
+              class="w-full px-4 py-3 bg-white border-2 border-black focus:ring-0 focus:border-black font-mono text-black placeholder-gray-400"
+              placeholder="30" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-6 border-t-2 border-black">
+          <button
+            class="px-6 py-2 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors font-bold mono-font uppercase"
+            onclick="closeScheduleModal()">
+            Cancel
+          </button>
+          <button
+            class="px-6 py-2 bg-black text-white border-2 border-black hover:bg-red-600 hover:border-red-600 transition-colors font-bold mono-font uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none translate-x-0 hover:translate-x-[2px] hover:translate-y-[2px]"
+            onclick="saveSchedule()">
+            Save Config
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tasksCache = [];
+    let modelsCache = {};
+    let lastModelsFetchMs = 0;
+    let modelsIntervalS = 60;
+    let ws = null;
+    let wsReconnectTimer = null;
+
+    const STEP_ORDER = ["fetch_papers", "openai_analyze", "render_images", "build_payload", "publish_mcp"];
+    const STEP_LABEL = {
+      fetch_papers: "抓取论文",
+      openai_analyze: "AI分析",
+      render_images: "生成封面",
+      build_payload: "生成文案",
+      publish_mcp: "发布到小红书",
+    };
+    const STEP_ICON = {
+      fetch_papers: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+      openai_analyze: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
+      render_images: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
+      build_payload: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+      publish_mcp: "M13 10V3L4 14h7v7l9-11h-7z",
+    };
+
+    function formatTime(iso) {
+      if (!iso) return "--";
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString("zh-CN", {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+      return await res.json();
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function taskStatusColor(status) {
+      const colors = {
+        success: "text-green-700 bg-white border border-black",
+        failed: "text-red-600 bg-white border border-black",
+        running: "text-white bg-red-600 border border-black",
+        canceled: "text-yellow-600 bg-white border border-black",
+        skipped: "text-gray-500 bg-white border border-black",
+      };
+      return colors[status] || "text-gray-500 bg-white border border-black";
+    }
+
+    function updateStats() {
+      const today = new Date().toDateString();
+      const todayTasks = tasksCache.filter(t => new Date(t.start_time).toDateString() === today);
+      const successTasks = todayTasks.filter(t => t.status === "success");
+
+      document.getElementById("todayCount").textContent = todayTasks.length;
+      document.getElementById("successRate").textContent =
+        todayTasks.length > 0
+          ? Math.round((successTasks.length / todayTasks.length) * 100) + "%"
+          : "--";
+
+      const healthyModels = Object.values(modelsCache).filter(m => m.status === "healthy").length;
+      const totalModels = Object.keys(modelsCache).length;
+      document.getElementById("modelsHealth").textContent =
+        totalModels > 0 ? `${healthyModels}/${totalModels}` : "--";
+    }
+
+    async function retryTask(taskId, stepName, btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2 inline" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>PROCESSING...`;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+      try {
+        const url = stepName
+          ? `/api/tasks/${encodeURIComponent(taskId)}/retry/${encodeURIComponent(stepName)}`
+          : `/api/tasks/${encodeURIComponent(taskId)}/retry`;
+        const res = await fetch(url, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "重试失败");
+        await loadTasks();
+      } catch (e) {
+        alert(`重试失败: ${e.message || e}`);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "RETRY";
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+      }
+    }
+
+    async function cancelTask(taskId, btn) {
+      if (!taskId) return;
+      if (!confirm("Are you sure you want to stop this task?")) return;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2 inline" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>STOPPING...`;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+
+      try {
+        const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "终止失败");
+        await loadTasks();
+      } catch (e) {
+        alert(`终止失败: ${e.message || e}`);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "STOP TASK";
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+      }
+    }
+
+    async function loadTasks() {
+      const t = await fetchJson("/api/data/tasks.json");
+      tasksCache = (Array.isArray(t.tasks) ? t.tasks : []).filter((x) => x && x.task_type === "publish");
+      renderCurrentTask();
+      renderTasksTable();
+      updateStats();
+    }
+
+    function initWebSocket() {
+      if (ws) {
+        try {
+          ws.onopen = null;
+          ws.onmessage = null;
+          ws.onclose = null;
+          ws.onerror = null;
+          ws.close();
+        } catch (e) { }
+      }
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${proto}//${window.location.host}/ws/logs`;
+      const socket = new WebSocket(url);
+      ws = socket;
+
+      const dot = document.getElementById("wsStatusDot");
+      const text = document.getElementById("wsStatusText");
+      if (dot && text) {
+        dot.className = "w-2 h-2 rounded-full mr-1.5 bg-gray-300";
+        text.textContent = "Connecting...";
+        text.className = "text-gray-500";
+      }
+
+      socket.onopen = () => {
+        if (ws !== socket) return;
+        document.getElementById("wsStatusDot").className = "w-2 h-2 rounded-full mr-1.5 bg-green-500 animate-pulse";
+        document.getElementById("wsStatusText").textContent = "Connected";
+        document.getElementById("wsStatusText").className = "text-green-600 font-medium";
+
+        if (wsReconnectTimer) {
+          clearTimeout(wsReconnectTimer);
+          wsReconnectTimer = null;
+        }
       };
 
-      function formatTime(iso) {
-        if (!iso) return "-";
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return String(iso);
-        return d.toLocaleString("zh-CN");
-      }
+      socket.onmessage = (event) => {
+        if (ws !== socket) return;
+        const terminal = document.getElementById("terminal");
+        const div = document.createElement("div");
+        div.className = "hover:bg-gray-50 px-1 rounded transition-colors duration-150";
+        div.innerHTML = `<span class="opacity-50 select-none mr-2">$</span>${escapeHtml(event.data)}`;
+        terminal.appendChild(div);
 
-	      async function fetchJson(url) {
-	        const res = await fetch(url, { cache: "no-store" });
-	        if (!res.ok) throw new Error(`${url} -> ${res.status}`);
-	        return await res.json();
-	      }
-
-	      function escapeHtml(text) {
-	        return String(text || "")
-	          .replaceAll("&", "&amp;")
-	          .replaceAll("<", "&lt;")
-	          .replaceAll(">", "&gt;")
-	          .replaceAll('"', "&quot;")
-	          .replaceAll("'", "&#039;");
-	      }
-
-      function taskStatusColor(status) {
-        const s = status || "-";
-        if (s === "success") return "text-emerald-700";
-        if (s === "failed") return "text-rose-700";
-        if (s === "running") return "text-indigo-700";
-        if (s === "canceled") return "text-amber-700";
-        if (s === "skipped") return "text-slate-600";
-        return "text-slate-600";
-      }
-
-	      async function retryTask(taskId, stepName) {
-	        try {
-	          const url = stepName
-	            ? `/api/tasks/${encodeURIComponent(taskId)}/retry/${encodeURIComponent(stepName)}`
-	            : `/api/tasks/${encodeURIComponent(taskId)}/retry`;
-	          const res = await fetch(url, { method: "POST" });
-	          const data = await res.json();
-	          if (!res.ok) throw new Error(data.detail || "retry failed");
-	          await loadTasks();
-	        } catch (e) {
-	          alert(`重试失败: ${e.message || e}`);
-	        }
-	      }
-
-      async function cancelTask(taskId) {
-        if (!taskId) return;
-        const ok = confirm("确定要终止当前发布任务吗？（可能需要等待当前网络请求超时后才会停止）");
-        if (!ok) return;
-        try {
-          const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST" });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "cancel failed");
-          await loadTasks();
-        } catch (e) {
-          alert(`终止失败: ${e.message || e}`);
+        if (terminal.children.length > 500) {
+          terminal.removeChild(terminal.children[0]);
         }
-      }
+        terminal.scrollTop = terminal.scrollHeight;
+      };
 
-	      async function loadTasks() {
-	        const t = await fetchJson("/api/data/tasks.json");
-	        tasksCache = (Array.isArray(t.tasks) ? t.tasks : []).filter((x) => x && x.task_type === "publish");
-	        renderCurrentTask();
-	        const tbody = document.getElementById("tasksTable");
-	        tbody.innerHTML = "";
-	        if (!tasksCache.length) {
-	          const tr = document.createElement("tr");
-	          tr.innerHTML = `<td class="py-3 text-slate-500" colspan="4">暂无发布任务记录</td>`;
-	          tbody.appendChild(tr);
-	          return;
-	        }
-	        for (const task of tasksCache.slice(0, 50)) {
-	          const status = task.status || "-";
-          const statusColor = taskStatusColor(status);
-          const prog = task.progress || {};
-	          const runningNote =
-	            status === "running"
-	              ? `step=${task.current_step || "-"}, openai=${prog.openai_done ?? 0}/${prog.papers_total ?? 0}, images=${prog.images_done ?? 0}/${prog.papers_total ?? 0}, payload=${prog.payload_done ?? 0}/${prog.papers_total ?? 0}`
-	              : null;
-	          const note = runningNote || `papers=${task.papers_count || 0}, published=${task.published_count || 0}`;
-	          const message =
-	            task.error_message ? task.error_message : task.cancel_requested ? `${note} | cancel_requested` : note;
-	          const retryBtn =
-	            status === "failed"
-	              ? `<button class="ml-2 px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 text-xs" onclick="retryTask('${task.task_id}')">重试</button>`
-	              : "";
-            const cancelBtn =
-              status === "running"
-                ? task.cancel_requested
-                  ? `<button class="ml-2 px-2 py-1 rounded bg-slate-100 border border-slate-200 text-xs text-slate-500 cursor-not-allowed" disabled>取消中…</button>`
-                  : `<button class="ml-2 px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white text-xs" onclick="cancelTask('${task.task_id}')">终止</button>`
-                : "";
-	          const tr = document.createElement("tr");
-	          tr.className = "border-b last:border-b-0";
-	          tr.innerHTML = `
-	            <td class="py-2 pr-2 text-slate-600">${formatTime(task.start_time)}</td>
-	            <td class="py-2 pr-2 text-slate-600">${escapeHtml(task.source || "-")}</td>
-	            <td class="py-2 pr-2 ${statusColor}">${status}</td>
-	            <td class="py-2 pr-2 text-slate-600">${escapeHtml(message)}${cancelBtn}${retryBtn}</td>
-	          `;
-	          tbody.appendChild(tr);
-	        }
-	      }
+      socket.onclose = () => {
+        if (ws !== socket) return;
+        document.getElementById("wsStatusDot").className = "w-2 h-2 rounded-full mr-1.5 bg-red-400";
+        document.getElementById("wsStatusText").textContent = "Disconnected";
+        document.getElementById("wsStatusText").className = "text-red-500";
 
-      function stepBadge(status) {
-        const s = status || "pending";
-        if (s === "success") return '<span class="text-emerald-700">●</span>';
-        if (s === "failed") return '<span class="text-rose-700">●</span>';
-        if (s === "running") return '<span class="text-indigo-700">●</span>';
-        if (s === "canceled") return '<span class="text-amber-700">●</span>';
-        if (s === "skipped") return '<span class="text-slate-500">●</span>';
-        return '<span class="text-slate-400">●</span>';
-      }
-
-      function stepCircleClass(status) {
-        const s = status || "pending";
-        if (s === "success") return "bg-emerald-600";
-        if (s === "failed") return "bg-rose-600";
-        if (s === "running") return "bg-indigo-600";
-        if (s === "canceled") return "bg-amber-600";
-        if (s === "skipped") return "bg-slate-500";
-        return "bg-slate-300";
-      }
-
-      function connectorClass(prevStatus) {
-        const s = prevStatus || "pending";
-        if (s === "success") return "bg-emerald-300";
-        if (s === "failed") return "bg-rose-300";
-        if (s === "running") return "bg-indigo-300";
-        if (s === "canceled") return "bg-amber-300";
-        if (s === "skipped") return "bg-slate-300";
-        return "bg-slate-200";
-      }
-
-      function renderStepper(stepMap) {
-        const parts = [];
-        parts.push('<div class="mt-3 flex items-center w-full">');
-        for (let i = 0; i < STEP_ORDER.length; i++) {
-          const key = STEP_ORDER[i];
-          const st = stepMap[key] || "pending";
-          parts.push('<div class="flex flex-col items-center min-w-[86px]">');
-          parts.push(`<div class="h-3 w-3 rounded-full ${stepCircleClass(st)}"></div>`);
-          parts.push(`<div class="mt-1 text-[11px] text-slate-600 text-center">${STEP_LABEL[key] || key}</div>`);
-          parts.push("</div>");
-          if (i < STEP_ORDER.length - 1) {
-            parts.push(`<div class="flex-1 h-0.5 ${connectorClass(st)} mx-2 rounded"></div>`);
-          }
+        if (!wsReconnectTimer) {
+          wsReconnectTimer = setTimeout(() => {
+            wsReconnectTimer = null;
+            initWebSocket();
+          }, 3000);
         }
-        parts.push("</div>");
-        return parts.join("");
-      }
+      };
 
-      function renderCurrentTask() {
-        const box = document.getElementById("currentTaskBox");
-        if (!box) return;
-        const current = tasksCache.find((t) => t.status === "running") || tasksCache[0];
-        if (!current) {
-          const emptyMap = {};
-          for (const k of STEP_ORDER) emptyMap[k] = "pending";
-          box.innerHTML = `
-            <div class="font-medium">暂无发布任务记录</div>
-            <div class="mt-1 text-xs text-slate-600">点击【手动发布】或等待定时触发后，这里会显示每个节点的实时进度。</div>
-            ${renderStepper(emptyMap)}
-          `;
-          return;
-        }
+      socket.onerror = (e) => {
+        if (ws !== socket) return;
+        console.error("ws error", e);
+      };
+    }
 
-        const prog = current.progress || {};
-        const steps = Array.isArray(current.steps) ? current.steps : [];
-        const warnings = Array.isArray(current.warnings) ? current.warnings : [];
+    function clearLogs() {
+      document.getElementById("terminal").innerHTML = '<div class="text-gray-500 italic">Logs cleared.</div>';
+    }
 
-        const stepMap = {};
-        for (const k of STEP_ORDER) stepMap[k] = "pending";
-        for (const s of steps) {
-          if (s && s.name) stepMap[s.name] = s.status || "pending";
-        }
+    function initDashboard() {
+      if (window._initialized) return;
+      window._initialized = true;
+      loadTasks();
+      loadJobs();
+      checkModelsNow();
+      initWebSocket();
+      setInterval(loadTasks, 3000); // Poll tasks
+      setInterval(checkModels, modelsIntervalS * 1000); // Poll models
+    }
 
-	        const parts = [];
-	        parts.push(`<div class="flex items-center justify-between gap-3">`);
-	        parts.push(`<div class="font-medium">任务: ${current.task_id || "-"}</div>`);
-          const cancelBtn =
-            current.status === "running"
-              ? current.cancel_requested
-                ? `<button class="ml-2 px-3 py-1.5 rounded bg-slate-100 border border-slate-200 text-xs text-slate-500 cursor-not-allowed" disabled>取消中…</button>`
-                : `<button class="ml-2 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 text-white text-xs" onclick="cancelTask('${current.task_id}')">终止</button>`
-              : "";
-	        parts.push(`<div class="flex items-center text-slate-500">状态: <span class="${taskStatusColor(current.status)}">${current.status}</span>${cancelBtn}</div>`);
-	        parts.push(`</div>`);
-	        parts.push(
-            `<div class="mt-1 text-xs text-slate-600">来源: ${escapeHtml(current.source || "-")}${current.retry_of ? ` | retry_of: ${escapeHtml(current.retry_of)}` : ""}${current.cancel_requested ? ` | cancel_requested` : ""}</div>`
-          );
-	
-	        if (current.status === "failed") {
-	          const failedStep = current.failed_step || "-";
-	          const resumable = !!current.resumable;
-	          parts.push(`<div class="mt-2 flex items-center justify-between gap-3 text-xs">`);
-	          parts.push(`<div class="text-slate-600">failed_step: <span class="text-rose-700">${escapeHtml(failedStep)}</span> | resumable: ${resumable ? "yes" : "no"}</div>`);
-	          parts.push(
-	            `<button class="px-3 py-1.5 rounded bg-white border border-slate-200 hover:bg-slate-50 ${resumable ? "" : "opacity-50 cursor-not-allowed"}" ${
-	              resumable ? `onclick="retryTask('${current.task_id}')"` : "disabled"
-	            }>从失败处重试</button>`
-	          );
-	          parts.push(`</div>`);
-	        }
+    window.addEventListener("load", initDashboard, { once: true });
 
-	        parts.push(renderStepper(stepMap));
-	        parts.push(`<div class="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-600">`);
-	        parts.push(`<div>papers_total: ${prog.papers_total ?? "-"}</div>`);
-	        parts.push(`<div>openai_done: ${prog.openai_done ?? "-"}</div>`);
-	        parts.push(`<div>images_done: ${prog.images_done ?? "-"}</div>`);
-	        parts.push(`</div>`);
-	        parts.push(`<div class="mt-1 text-xs text-slate-600">payload_done: ${prog.payload_done ?? "-"}</div>`);
+    // Helper wrapper for loadTasks in simple loadAll
+    function loadAll() {
+      loadTasks();
+      loadJobs();
+      checkModelsNow();
+    }
 
-	        if (steps.length) {
-	          parts.push(`<div class="mt-3 space-y-1">`);
-	          for (const s of steps) {
-	            const name = s.name || "-";
-	            const label = STEP_LABEL[name] || name;
-	            const st = s.status || "pending";
-	            const canRetry = current.status === "failed" && !!current.resumable && STEP_ORDER.includes(name);
-	            const retryLink = canRetry
-	              ? `<button class="ml-2 text-xs text-indigo-700 hover:text-indigo-900" onclick="retryTask('${current.task_id}','${name}')">从此步重试</button>`
-	              : "";
-	            parts.push(
-	              `<div class="flex items-center justify-between gap-3">
-	                <div class="flex items-center gap-2">${stepBadge(st)}<span class="font-medium">${label}</span>${retryLink}</div>
-	                <div class="text-xs text-slate-500">${st}</div>
-	              </div>`
-	            );
-	          }
-	          parts.push(`</div>`);
-	        } else {
-          parts.push(`<div class="mt-2 text-xs text-slate-500">无步骤信息（旧任务）。</div>`);
-        }
+    // We'll replace the old auto-refresh loop logic with explicit intervals in load event
+    // but keep checkModels for compatibility if used
+    async function checkModels() {
+      // Implementation remains same
+      const box = document.getElementById("modelsBox");
+      if (!box) return;
+      // ... (rest of model checking logic implicitly handled by checkModelsNow or similar, 
+      // but let's just make sure we trigger it)
+      const auto = document.getElementById("modelsAutoRefresh");
+      if (auto && !auto.checked) return;
+      await checkModelsNow();
+    }
 
-        if (warnings.length) {
-          const last = warnings[warnings.length - 1];
-          parts.push(
-            `<div class="mt-3 text-xs text-amber-700">warnings: ${warnings.length}（最近: ${last.phase || "-"} ${last.title || ""}）</div>`
-          );
-        }
 
-	        if (current.error_message) {
-	          parts.push(`<div class="mt-2 text-xs text-rose-700">error: ${escapeHtml(current.error_message)}</div>`);
-	        }
+    function renderCurrentTask() {
+      const box = document.getElementById("currentTaskBox");
+      const badge = document.getElementById("taskStatusBadge");
+      if (!box) return;
 
-        box.innerHTML = parts.join("");
-      }
-
-      async function loadJobs() {
-        const j = await fetchJson("/api/jobs");
-        const jobs = Array.isArray(j.jobs) ? j.jobs : [];
-        const el = document.getElementById("jobsList");
-        el.innerHTML = "";
-        for (const job of jobs) {
-          const item = document.createElement("div");
-          item.className = "flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2";
-          item.innerHTML = `
-            <div>
-              <div class="font-medium">${job.id}</div>
-              <div class="text-xs text-slate-500">${job.trigger}</div>
+      const current = tasksCache.find((t) => t.status === "running") || tasksCache[0];
+      if (!current) {
+        box.innerHTML = `
+            <div class="text-center py-12">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p class="mt-4 text-gray-600">暂无任务运行</p>
+              <p class="mt-2 text-sm text-gray-500">点击"手动发布"开始新任务</p>
             </div>
-            <div class="text-sm text-slate-700">下次运行: ${formatTime(job.next_run_time)}</div>
           `;
-          el.appendChild(item);
+        badge.textContent = "IDLE";
+        badge.className = "px-2 py-1 bg-white border border-black text-gray-500 text-xs font-mono";
+        return;
+      }
+
+      const steps = Array.isArray(current.steps) ? current.steps : [];
+      const stepMap = {};
+      for (const k of STEP_ORDER) stepMap[k] = "pending";
+      for (const s of steps) {
+        if (s && s.name) stepMap[s.name] = s.status || "pending";
+      }
+
+      // Update status badge
+      const statusColors = {
+        running: "bg-red-600 text-white animate-pulse border-black",
+        success: "bg-white text-black border-black",
+        failed: "bg-black text-white border-black",
+        canceled: "bg-white text-gray-500 border-black",
+      };
+      badge.textContent = current.status === "running" ? "RUNNING" : current.status.toUpperCase();
+      badge.className = `px-2 py-1 text-xs font-mono border ${statusColors[current.status] || "bg-white text-black border-black"}`;
+
+      const prog = current.progress || {};
+      let html = `
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm text-gray-500">任务 ID</div>
+                <div class="font-mono text-sm mt-1">${current.task_id || "--"}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm text-gray-500">来源</div>
+                <div class="text-sm font-medium mt-1">${escapeHtml(current.source || "--")}</div>
+              </div>
+            </div>
+        `;
+
+      // Progress indicators
+      if (prog.papers_total > 0) {
+        const openaiPercent = Math.round((prog.openai_done || 0) / prog.papers_total * 100);
+        const imagesPercent = Math.round((prog.images_done || 0) / prog.papers_total * 100);
+
+        html += `
+          <div class="grid grid-cols-3 gap-4">
+              <div class="bg-white border-heavy p-3">
+                <div class="text-2xl font-bold text-black font-mono tracking-tighter">${prog.papers_total || 0}</div>
+                <div class="text-xs text-gray-500 mt-1 uppercase mono-font">Total Papers</div>
+              </div>
+              <div class="bg-white border-heavy p-3">
+                <div class="text-2xl font-bold text-black font-mono tracking-tighter">${prog.openai_done || 0}</div>
+                <div class="text-xs text-gray-500 mt-1 uppercase mono-font">AI Analyzed</div>
+                <div class="w-full bg-gray-200 h-1 mt-2">
+                  <div class="bg-black h-1" style="width: ${openaiPercent}%"></div>
+                </div>
+              </div>
+              <div class="bg-white border-heavy p-3">
+                <div class="text-2xl font-bold text-black font-mono tracking-tighter">${prog.images_done || 0}</div>
+                <div class="text-xs text-gray-500 mt-1 uppercase mono-font">Images Gen</div>
+                <div class="w-full bg-gray-200 h-1 mt-2">
+                  <div class="bg-red-600 h-1" style="width: ${imagesPercent}%"></div>
+                </div>
+              </div>
+            </div>
+          `;
+      }
+
+      // Steps visualization - Horizontal layout
+      html += `
+          <div class="bg-gray-50 border-heavy p-4 mb-4 overflow-x-auto">
+            <div class="flex items-start justify-between w-full">
+        `;
+
+      for (let i = 0; i < STEP_ORDER.length; i++) {
+        const key = STEP_ORDER[i];
+        const st = stepMap[key] || "pending";
+        const icon = STEP_ICON[key] || "";
+
+        const colors = {
+          success: { bg: "bg-black", border: "border-black", icon: "text-white", text: "text-black" },
+          failed: { bg: "bg-red-600", border: "border-black", icon: "text-white", text: "text-red-600" },
+          running: { bg: "bg-white", border: "border-black", icon: "text-red-600", text: "text-red-600" },
+          pending: { bg: "bg-white", border: "border-gray-300", icon: "text-gray-300", text: "text-gray-400" },
+          skipped: { bg: "bg-gray-100", border: "border-gray-200", icon: "text-gray-400", text: "text-gray-400" },
+          canceled: { bg: "bg-white", border: "border-black", icon: "text-black", text: "text-black" }
+        }[st] || { bg: "bg-white", border: "border-gray-300", icon: "text-gray-300", text: "text-gray-400" };
+
+        html += `
+            <div class="flex flex-col items-center flex-1 relative group">
+              <div class="z-10 w-10 h-10 ${colors.bg} flex items-center justify-center border-2 ${colors.border} transition-all duration-300">
+                 <svg class="w-5 h-5 ${colors.icon} ${st === 'running' ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}" />
+                 </svg>
+              </div>
+              
+              <div class="mt-2 text-center">
+                <div class="text-[10px] font-bold uppercase mono-font ${colors.text}">${STEP_LABEL[key]}</div>
+                <div class="text-[9px] uppercase font-bold mono-font ${colors.text} opacity-75 mt-0.5">${st}</div>
+              </div>
+              
+              ${st === 'running' ? `
+                <div class="absolute -bottom-3 w-12 h-1 bg-gray-200 overflow-hidden border border-black">
+                  <div class="bg-red-600 h-full animate-shimmer" style="width: 50%"></div>
+                </div>
+              ` : ''}
+
+              ${i < STEP_ORDER.length - 1 ? `
+                 <div class="absolute top-5 left-1/2 w-full h-[2px] bg-transparent border-t-2 border-dotted border-black opacity-20 -z-0"></div>
+              ` : ''}
+            </div>
+          `;
+      }
+
+      html += `
+            </div>
+          </div>
+        `;
+
+      // Action buttons
+      if (current.status === "running" && !current.cancel_requested) {
+        html += `
+            <button
+              onclick="cancelTask('${current.task_id}', this)"
+              class="w-full px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors font-medium mono-font uppercase"
+            >
+              STOP TASK
+            </button>
+          `;
+      } else if (current.status === "failed" && current.resumable) {
+        html += `
+            <button
+              onclick="retryTask('${current.task_id}', null, this)"
+              class="w-full px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg transition-colors font-medium mono-font uppercase"
+            >
+              RETRY FROM FAILURE
+            </button>
+          `;
+      }
+
+      if (current.error_message) {
+        html += `
+            <div class="bg-white border-heavy p-4 mt-4 relative">
+              <div class="absolute top-0 left-0 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 mono-font">ERROR</div>
+              <div class="flex items-start mt-2">
+                <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="ml-3">
+                  <div class="text-sm font-bold text-black mono-font uppercase">ERROR_LOG</div>
+                  <div class="text-xs text-red-600 mt-1 font-mono break-all border-l-2 border-red-600 pl-2">
+                    ${escapeHtml(current.error_message)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+      }
+
+      html += `</div>`;
+      box.innerHTML = html;
+    }
+
+    function renderTasksTable() {
+      const tbody = document.getElementById("tasksTable");
+      tbody.innerHTML = "";
+
+      if (!tasksCache.length) {
+        tbody.innerHTML = `
+            <tr>
+              <td colspan="4" class="py-8 text-center text-gray-500">
+                暂无发布任务记录
+              </td>
+            </tr>
+          `;
+        return;
+      }
+
+      for (const task of tasksCache.slice(0, 10)) {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-gray-50 transition-colors";
+
+        const retryBtn = task.status === "failed" && task.resumable
+          ? `<button class="ml-2 px-2 py-0.5 text-[10px] font-bold bg-purple-100 hover:bg-purple-200 text-purple-600 border border-purple-200 transition-colors mono-font uppercase" onclick="retryTask('${task.task_id}', null, this)">RETRY</button>`
+          : "";
+
+        const cancelBtn = task.status === "running" && !task.cancel_requested
+          ? `<button class="ml-2 px-2 py-0.5 text-[10px] font-bold bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 transition-colors mono-font uppercase" onclick="cancelTask('${task.task_id}', this)">STOP</button>`
+          : "";
+
+        tr.innerHTML = `
+            <td class="py-3 px-2 text-xs text-black font-mono">${formatTime(task.start_time)}</td>
+            <td class="py-3 px-2 text-xs text-black font-mono uppercase">${escapeHtml(task.source || "--")}</td>
+            <td class="py-3 px-2">
+              <span class="px-2 py-0.5 text-xs font-mono uppercase ${taskStatusColor(task.status)}">${task.status}</span>
+            </td>
+            <td class="py-3 px-2 text-xs text-black font-mono">
+              ${task.papers_count || 0} PAPERS
+              ${cancelBtn}${retryBtn}
+            </td>
+          `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function loadJobs() {
+      const j = await fetchJson("/api/jobs");
+      const jobs = Array.isArray(j.jobs) ? j.jobs : [];
+      const el = document.getElementById("jobsList");
+      el.innerHTML = "";
+
+      if (!jobs.length) {
+        el.innerHTML = `
+            <div class="text-center py-8 text-gray-500 mono-font text-xs">
+              NO_SCHEDULED_JOBS
+            </div>
+          `;
+        return;
+      }
+
+      for (const job of jobs) {
+        const nextRun = formatTime(job.next_run_time);
+        if (document.getElementById("nextRunTime")) {
+          document.getElementById("nextRunTime").textContent = nextRun;
+        }
+
+        const item = document.createElement("div");
+        item.className = "bg-white border-heavy p-3 mb-2";
+        item.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="bg-black text-white p-1">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-black text-sm mono-font">${job.id}</div>
+                  <div class="text-xs text-gray-500 mono-font mt-0.5">${job.trigger}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-gray-400 uppercase mono-font">Next Run</div>
+                <div class="text-xs font-bold text-black mt-0.5 mono-font">${nextRun}</div>
+              </div>
+            </div>
+          `;
+        el.appendChild(item);
+      }
+    }
+
+    async function triggerTask(type, btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="mono-font">STARTING...</span>`;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+      try {
+        const res = await fetch("/api/tasks/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task_type: type }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "触发失败");
+        await loadTasks();
+      } catch (e) {
+        alert(`触发失败: ${e.message || e}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg><span class="mono-font">PUBLISH NOW</span>`;
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
         }
       }
+    }
 
-      async function triggerTask(type) {
-        try {
-          const res = await fetch("/api/tasks/trigger", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ task_type: type }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "trigger failed");
-          await loadTasks();
-        } catch (e) {
-          alert(`触发失败: ${e.message || e}`);
+    function openScheduleModal() {
+      document.getElementById("scheduleModal").classList.remove("hidden");
+      document.getElementById("scheduleModal").classList.add("flex");
+      loadScheduleIntoModal();
+    }
+
+    function closeScheduleModal() {
+      document.getElementById("scheduleModal").classList.add("hidden");
+      document.getElementById("scheduleModal").classList.remove("flex");
+    }
+
+    async function loadScheduleIntoModal() {
+      try {
+        const cfg = await fetchJson("/api/schedule");
+        document.getElementById("publishEnabled").checked = !!cfg.publish_enabled;
+        document.getElementById("publishHour").value = cfg.publish_hour;
+        document.getElementById("publishMinute").value = cfg.publish_minute;
+      } catch (e) {
+        alert(`加载配置失败: ${e.message || e}`);
+      }
+    }
+
+    async function saveSchedule() {
+      const payload = {
+        publish_enabled: document.getElementById("publishEnabled").checked,
+        publish_hour: Number(document.getElementById("publishHour").value),
+        publish_minute: Number(document.getElementById("publishMinute").value),
+      };
+      try {
+        const res = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "保存失败");
+        closeScheduleModal();
+        await loadJobs();
+      } catch (e) {
+        alert(`保存失败: ${e.message || e}`);
+      }
+    }
+
+    function renderModels() {
+      const box = document.getElementById("modelsBox");
+      const meta = document.getElementById("modelsMeta");
+      if (!box) return;
+
+      const entries = Object.entries(modelsCache || {});
+      if (!entries.length) {
+        box.innerHTML = `
+            <div class="col-span-3 text-center py-12">
+              <div class="shimmer rounded-lg h-20 w-full"></div>
+            </div>
+          `;
+        if (meta) meta.innerText = "加载中...";
+        return;
+      }
+
+      box.innerHTML = "";
+      let lastCheck = "";
+
+      for (const [name, st] of entries) {
+        const status = (st && st.status) || "unknown";
+        lastCheck = (st && st.last_check) || lastCheck;
+
+        const statusConfig = {
+          healthy: { bg: "bg-white border-black", dot: "bg-black", text: "text-black" },
+          unhealthy: { bg: "bg-red-50 border-red-600", dot: "bg-red-600", text: "text-red-600" },
+          unknown: { bg: "bg-gray-100 border-gray-400", dot: "bg-gray-400", text: "text-gray-500" },
+        }[status] || { bg: "bg-gray-50 border-gray-200", dot: "bg-gray-400", text: "text-gray-700" };
+
+        const card = document.createElement("div");
+        card.className = `border-heavy ${statusConfig.bg} p-4`;
+        card.innerHTML = `
+            <div class="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+              <div class="font-bold text-sm text-black mono-font">${escapeHtml(name)}</div>
+              <div class="flex items-center space-x-2">
+                <span class="h-2 w-2 rounded-full ${statusConfig.dot} ${status === 'healthy' ? 'status-dot' : ''}"></span>
+                <span class="text-xs ${statusConfig.text} font-bold mono-font uppercase">${escapeHtml(status)}</span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-xs font-mono">
+                <span class="text-gray-500 uppercase">Latency</span>
+                <span class="${statusConfig.text} font-bold">${st && st.latency_ms != null ? Math.round(st.latency_ms) + "ms" : "--"}</span>
+              </div>
+              <div class="flex items-center justify-between text-xs font-mono">
+                <span class="text-gray-500 uppercase">Model</span>
+                <span class="text-black truncate max-w-[120px]" title="${escapeHtml(st && st.model || "")}">${escapeHtml(st && st.model || "--")}</span>
+              </div>
+            </div>
+            ${st && st.error ? `
+              <div class="mt-2 text-xs text-red-600 border border-red-600 bg-red-50 p-1 font-mono break-all">
+                ${escapeHtml(st.error)}
+              </div>
+            ` : ""}
+          `;
+        box.appendChild(card);
+      }
+
+      if (meta) {
+        meta.innerText = `刷新间隔: ${modelsIntervalS}s`;
+        document.getElementById("modelsLastUpdate").textContent = `最后检查: ${formatTime(lastCheck)}`;
+      }
+    }
+
+    async function loadModelsHealth(force = false) {
+      const auto = document.getElementById("modelsAutoRefresh");
+      if (!force && auto && !auto.checked) return;
+
+      const now = Date.now();
+      if (!force && now - lastModelsFetchMs < modelsIntervalS * 1000) return;
+
+      try {
+        const data = await fetchJson("/api/models/health");
+        modelsIntervalS = Number(data.interval_s || 60);
+        modelsCache = data.models || {};
+        lastModelsFetchMs = now;
+        renderModels();
+        updateStats();
+      } catch (e) {
+        console.error("Failed to load models health:", e);
+      }
+    }
+
+    async function checkModelsNow(btn) {
+      if (btn) {
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="mono-font text-xs font-bold">CHECKING...</span>`;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+      try {
+        const res = await fetch("/api/models/health/check", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "检查失败");
+        modelsCache = data.models || {};
+        lastModelsFetchMs = 0;
+        renderModels();
+        updateStats();
+      } catch (e) {
+        alert(`检查失败: ${e.message || e}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg><span class="mono-font text-xs font-bold">CHECK_NOW</span>`;
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
         }
       }
+    }
 
-      function openScheduleModal() {
-        document.getElementById("scheduleModal").classList.remove("hidden");
-        document.getElementById("scheduleModal").classList.add("flex");
-        loadScheduleIntoModal();
-      }
+    // Initial setup handled by initDashboard().
+  </script>
+</body>
 
-      function closeScheduleModal() {
-        document.getElementById("scheduleModal").classList.add("hidden");
-        document.getElementById("scheduleModal").classList.remove("flex");
-      }
-
-      async function loadScheduleIntoModal() {
-        try {
-          const cfg = await fetchJson("/api/schedule");
-          document.getElementById("publishEnabled").checked = !!cfg.publish_enabled;
-          document.getElementById("publishHour").value = cfg.publish_hour;
-          document.getElementById("publishMinute").value = cfg.publish_minute;
-        } catch (e) {
-          alert(`加载配置失败: ${e.message || e}`);
-        }
-      }
-
-	      async function saveSchedule() {
-        const payload = {
-          publish_enabled: document.getElementById("publishEnabled").checked,
-          publish_hour: Number(document.getElementById("publishHour").value),
-          publish_minute: Number(document.getElementById("publishMinute").value),
-        };
-        try {
-          const res = await fetch("/api/schedule", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "save failed");
-          closeScheduleModal();
-          await loadJobs();
-        } catch (e) {
-          alert(`保存失败: ${e.message || e}`);
-        }
-	      }
-	
-	      function statusDotClass(st) {
-	        if (st === "healthy") return "bg-emerald-600";
-	        if (st === "unhealthy") return "bg-rose-600";
-	        return "bg-slate-400";
-	      }
-	
-	      function renderModels() {
-	        const box = document.getElementById("modelsBox");
-	        const meta = document.getElementById("modelsMeta");
-	        if (!box) return;
-	        const entries = Object.entries(modelsCache || {});
-	        if (!entries.length) {
-	          box.innerHTML = `<div class="text-slate-500 text-sm">暂无健康数据（点击“立即检查”）</div>`;
-	          if (meta) meta.innerText = "";
-	          return;
-	        }
-	        box.innerHTML = "";
-	        let lastCheck = "";
-	        for (const [name, st] of entries) {
-	          const status = (st && st.status) || "unknown";
-	          lastCheck = (st && st.last_check) || lastCheck;
-	          const card = document.createElement("div");
-	          card.className = "rounded-lg border border-slate-200 bg-slate-50 p-3";
-	          card.innerHTML = `
-	            <div class="flex items-center justify-between">
-	              <div class="font-medium">${escapeHtml(name)}</div>
-	              <div class="flex items-center gap-2 text-xs text-slate-600">
-	                <span class="h-2 w-2 rounded-full ${statusDotClass(status)}"></span>
-	                <span>${escapeHtml(status)}</span>
-	              </div>
-	            </div>
-	            <div class="mt-2 text-xs text-slate-600">延迟: ${st && st.latency_ms != null ? `${Math.round(st.latency_ms)}ms` : "--"}</div>
-	            <div class="mt-1 text-xs text-slate-500 break-words">${st && st.error ? `错误: ${escapeHtml(st.error)}` : ""}</div>
-	          `;
-	          box.appendChild(card);
-	        }
-	        if (meta) meta.innerText = `最后检查: ${lastCheck || "-"} | 刷新间隔: ${modelsIntervalS}s`;
-	      }
-	
-	      async function loadModelsHealth(force = false) {
-	        const auto = document.getElementById("modelsAutoRefresh");
-	        if (!force && auto && !auto.checked) return;
-	        const now = Date.now();
-	        if (!force && now - lastModelsFetchMs < modelsIntervalS * 1000) return;
-	        try {
-	          const data = await fetchJson("/api/models/health");
-	          modelsIntervalS = Number(data.interval_s || 60);
-	          modelsCache = data.models || {};
-	          lastModelsFetchMs = now;
-	          renderModels();
-	        } catch (e) {
-	          // keep previous cache
-	        }
-	      }
-	
-	      async function checkModelsNow() {
-	        try {
-	          const res = await fetch("/api/models/health/check", { method: "POST" });
-	          const data = await res.json();
-	          if (!res.ok) throw new Error(data.detail || "check failed");
-	          modelsCache = data.models || {};
-	          lastModelsFetchMs = 0;
-	          renderModels();
-	        } catch (e) {
-	          alert(`检查失败: ${e.message || e}`);
-	        }
-	      }
-
-	      async function loadAll() {
-	        try {
-	          await Promise.all([loadTasks(), loadJobs(), loadModelsHealth()]);
-	          document.getElementById("statusLine").innerText = `仅监控发布任务 | 最近刷新: ${new Date().toLocaleString("zh-CN")}`;
-	        } catch (e) {
-	          console.error(e);
-	        }
-	      }
-
-      loadAll();
-      setInterval(loadAll, 5000);
-    </script>
-  </body>
 </html>
